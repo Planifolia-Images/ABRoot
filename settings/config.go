@@ -14,7 +14,6 @@ package settings
 */
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -95,6 +94,17 @@ func init() {
 
 	CnfFileUsed = viper.ConfigFileUsed()
 
+	updateConfig()
+}
+
+// AddConfigFile adds a new config file
+func AddConfigFile(file string) {
+	viper.SetConfigFile(file)
+	viper.MergeInConfig()
+	updateConfig()
+}
+
+func updateConfig() {
 	Cnf = &Config{
 		// Common
 		MaxParallelDownloads: viper.GetUint("maxParallelDownloads"),
