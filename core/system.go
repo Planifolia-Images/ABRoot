@@ -416,7 +416,7 @@ func (s *ABSystem) RunOperation(operation ABSystemOperation) error {
 		return pkgM.ClearUnstagedPackages()
 	}, nil, 10, &goodies.NoErrorHandler{}, false)
 
-	// Stage 5: Write abimage.abr.new and config to future/
+	// Stage 5: Write abimage.abr.new to future/
 	// ------------------------------------------------
 	PrintVerboseSimple("[Stage 5] -------- ABSystemRunOperation")
 
@@ -448,12 +448,6 @@ func (s *ABSystem) RunOperation(operation ABSystemOperation) error {
 		}
 
 		settings.Cnf.PartCryptVar = device
-	}
-
-	err = settings.WriteConfigToFile(filepath.Join(systemNew, "/usr/share/abroot/abroot.json"))
-	if err != nil {
-		PrintVerboseErr("ABSystem.RunOperation", 5.25, err)
-		return err
 	}
 
 	err = pkgM.WriteSummaryToFile(filepath.Join(systemNew, "/usr/share/abroot/package-summary"))

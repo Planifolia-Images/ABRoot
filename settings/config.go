@@ -137,20 +137,3 @@ func init() {
 
 	Cnf.FullImageName = fmt.Sprintf("%s/%s:%s", Cnf.Registry, Cnf.Name, Cnf.Tag)
 }
-
-// WriteConfigToFile writes the current configuration to a file
-func WriteConfigToFile(file string) error {
-	jsonOutput, err := json.MarshalIndent(Cnf, "", "    ")
-	if err != nil {
-		return err
-	}
-
-	outputFile, err := os.OpenFile(file, os.O_WRONLY|os.O_TRUNC, 0o644)
-	if err != nil {
-		return err
-	}
-
-	_, err = outputFile.Write(jsonOutput)
-
-	return err
-}
