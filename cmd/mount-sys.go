@@ -199,7 +199,7 @@ func mountOverlayMounts(rootLabel string, dryRun bool) error {
 		}
 
 		lowerCombined := strings.Join(overlay.lowerdirs, ":")
-		options := "lowerdir=" + lowerCombined + ",upperdir=" + overlay.upperdir + ",workdir=" + overlay.workdir
+		options := "lowerdir=" + lowerCombined + ",upperdir=" + overlay.upperdir + ",workdir=" + overlay.workdir + ",index=off,metacopy=off"
 
 		cmdr.FgDefault.Println("mounting overlay mount " + overlay.destination + " with options " + options)
 
