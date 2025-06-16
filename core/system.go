@@ -130,7 +130,7 @@ func (s *ABSystem) CheckAll() error {
 }
 
 // CheckUpdate checks if there is an update available
-func (s *ABSystem) CheckUpdate() (string, bool) {
+func (s *ABSystem) CheckUpdate() (string, bool, error) {
 	PrintVerboseInfo("ABSystem.CheckUpdate", "running...")
 	return s.Registry.HasUpdate(s.CurImage.Digest)
 }
@@ -167,7 +167,7 @@ func (s *ABSystem) CreateRootSymlinks(systemNewPath string) error {
 //	FORCE_UPGRADE:
 //		Forces the upgrade operation, even if no new image is available,
 //	APPLY:
-//		Applies package changes, but doesn't update the system.
+//		Applies package changes, and updates the system if an update is available.
 //	INITRAMFS:
 //		Updates the initramfs for the future root, but doesn't update the system.
 func (s *ABSystem) RunOperation(operation ABSystemOperation, freeSpace bool) error {
@@ -222,16 +222,22 @@ func (s *ABSystem) RunOperation(operation ABSystemOperation, freeSpace bool) err
 	}
 
 	var imageDigest string
-	if operation != APPLY && operation != INITRAMFS {
+	if operation != INITRAMFS {
 		var res bool
-		imageDigest, res = s.CheckUpdate()
+		imageDigest, res, err = s.CheckUpdate()
+		if err != nil {
+			PrintVerboseErr("ABSystemRunOperation", 1, err)
+			return err
+		}
 		if !res {
-			if operation != FORCE_UPGRADE {
+			if operation != FORCE_UPGRADE && operation != APPLY && operation != DRY_RUN_APPLY {
 				PrintVerboseErr("ABSystemRunOperation", 1.1, err)
 				return ErrNoUpdate
 			}
 			imageDigest = s.CurImage.Digest
-			PrintVerboseWarn("ABSystemRunOperation", 1.2, "No update available but --force is set. Proceeding...")
+			if operation == FORCE_UPGRADE {
+				PrintVerboseWarn("ABSystemRunOperation", 1.2, "No update available but --force is set. Proceeding...")
+			}
 		}
 	} else {
 		imageDigest = s.CurImage.Digest
@@ -313,7 +319,10 @@ func (s *ABSystem) RunOperation(operation ABSystemOperation, freeSpace bool) err
 		return err
 	}
 
-	pkgsFinal := pkgM.GetFinalCmd(operation)
+	pkgsFinal, err := pkgM.GetFinalCmd()
+	if err != nil {
+		PrintVerboseErr("ABSystemRunOperation", 3.25, err)
+	}
 	if pkgsFinal == "" {
 		pkgsFinal = "true"
 	}
@@ -321,7 +330,7 @@ func (s *ABSystem) RunOperation(operation ABSystemOperation, freeSpace bool) err
 
 	var imageName string
 	switch operation {
-	case APPLY, DRY_RUN_APPLY, INITRAMFS, DRY_RUN_INITRAMFS:
+	case INITRAMFS, DRY_RUN_INITRAMFS:
 		presentPartition, err := s.RootM.GetPresent()
 		if err != nil {
 			PrintVerboseErr("ABSystemRunOperation", 3.3, err)
@@ -335,10 +344,10 @@ func (s *ABSystem) RunOperation(operation ABSystemOperation, freeSpace bool) err
 		// Handle case where an image for the current root may not exist
 		// in storage
 		if imageName == "" {
-			imageName = settings.Cnf.FullImageName
+			imageName = settings.GetFullImageNameWithTag()
 		}
 	default:
-		imageName = strings.Split(settings.Cnf.FullImageName, ":")[0]
+		imageName = settings.GetFullImageName()
 		imageName += "@" + imageDigest
 		labels["ABRoot.BaseImageDigest"] = imageDigest
 	}
@@ -412,10 +421,6 @@ func (s *ABSystem) RunOperation(operation ABSystemOperation, freeSpace bool) err
 		return err
 	}
 
-	cq.Add(func(args ...interface{}) error {
-		return pkgM.ClearUnstagedPackages()
-	}, nil, 10, &goodies.NoErrorHandler{}, false)
-
 	// Stage 5: Write abimage.abr.new and config to future/
 	// ------------------------------------------------
 	PrintVerboseSimple("[Stage 5] -------- ABSystemRunOperation")
@@ -426,7 +431,7 @@ func (s *ABSystem) RunOperation(operation ABSystemOperation, freeSpace bool) err
 		return err
 	}
 
-	abimage, err := NewABImage(imageDigest, settings.Cnf.FullImageName)
+	abimage, err := NewABImage(imageDigest, settings.GetFullImageNameWithTag())
 	if err != nil {
 		PrintVerboseErr("ABSystem.RunOperation", 5.1, err)
 		return err
@@ -456,7 +461,7 @@ func (s *ABSystem) RunOperation(operation ABSystemOperation, freeSpace bool) err
 		return err
 	}
 
-	err = pkgM.WriteSummaryToFile(filepath.Join(systemNew, "/usr/share/abroot/package-summary"))
+	err = pkgM.WriteSummaryToRoot(systemNew)
 	if err != nil {
 		PrintVerboseErr("ABSystem.RunOperation", 5.26, err)
 		return err

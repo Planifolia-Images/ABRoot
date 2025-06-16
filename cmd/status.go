@@ -113,16 +113,16 @@ func status(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	pkgsUnstg, err := pkgMng.GetUnstagedPackagesPlain()
+	unstagedAdded, unstagedRemoved, err := pkgMng.GetUnstagedPackages("/")
 	if err != nil {
 		return err
 	}
+	pkgsUnstg := append(unstagedAdded, unstagedRemoved...)
 
 	if jsonFlag || dumpFlag {
 		type status struct {
 			Present         string       `json:"present"`
 			Future          string       `json:"future"`
-			CnfFile         string       `json:"cnfFile"`
 			CPU             string       `json:"cpu"`
 			GPU             []string     `json:"gpu"`
 			Memory          string       `json:"memory"`
@@ -138,7 +138,6 @@ func status(cmd *cobra.Command, args []string) error {
 		s := status{
 			Present:         present.Label,
 			Future:          future.Label,
-			CnfFile:         settings.CnfFileUsed,
 			CPU:             specs.CPU,
 			GPU:             specs.GPU,
 			Memory:          specs.Memory,
@@ -244,11 +243,6 @@ func status(cmd *cobra.Command, args []string) error {
 		{Level: 1, Text: abroot.Trans("status.partitions.present", present.Label, presentMark)},
 		{Level: 1, Text: abroot.Trans("status.partitions.future", future.Label, futureMark)},
 	}).Render()
-
-	// Loaded Configuration: ...
-	cmdr.Bold.Print(abroot.Trans("status.loadedConfig") + " ")
-	cmdr.FgDefault.Println(settings.CnfFileUsed)
-	fmt.Println()
 
 	// Device Specification:
 	cmdr.Bold.Println(abroot.Trans("status.specs.title"))
