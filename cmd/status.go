@@ -36,7 +36,13 @@ func NewStatusCommand() *cmdr.Command {
 		"status",
 		abroot.Trans("status.long"),
 		abroot.Trans("status.short"),
-		status,
+		func(cmd *cobra.Command, args []string) error {
+			err := status(cmd, args)
+			if err != nil {
+				os.Exit(1)
+			}
+			return nil
+		},
 	)
 
 	cmd.WithBoolFlag(
@@ -285,9 +291,8 @@ func getCurrentlyBootedPartition(a *core.ABRootManager) (string, string, error) 
 	if err != nil {
 		return "", "", err
 	}
-	uuid := uuid.New().String()
-	tmpBootMount := filepath.Join("/tmp", uuid)
-	err = os.Mkdir(tmpBootMount, 0o755)
+	tmpBootMount := "/run/abroot/tmp-boot-mount-status/"
+	err = os.MkdirAll(tmpBootMount, 0o755)
 	if err != nil {
 		return "", "", err
 	}
